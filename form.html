@@ -691,7 +691,9 @@ function buildFlowchart(data) {
   });
   svg.appendChild(defs);
 
-  // ── 固定高度矩形節點（話術只取前20字，不撐高節點）──
+  // ── 固定高度矩形節點
+  // 有話術時：節點標題(小)＋決策關鍵句(大，居中)＋角色(小，底部附注)
+  // 無話術時：節點標題(小)＋角色(大，居中)
   function node(x, y, w, h, bg, title, role, snip, dashed=false) {
     const g = mk('g', {});
     if (dashed) {
@@ -700,14 +702,43 @@ function buildFlowchart(data) {
     } else {
       g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:bg, opacity:'0.93'}));
     }
-    const tc = dashed ? bg : '#fff';
-    const tc2 = dashed ? '#6b7280' : 'rgba(255,255,255,.85)';
-    if (title) g.appendChild(mk('text', {x:x+w/2, y:y+14, 'text-anchor':'middle', fill:dashed?bg:'rgba(255,255,255,.7)', 'font-size':'9.5', 'font-family':'Noto Sans TC,sans-serif'}, title));
-    if (role)  g.appendChild(mk('text', {x:x+w/2, y:y+h/2+(snip?2:6), 'text-anchor':'middle', fill:tc, 'font-size':dashed?'11':'13', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, role));
+    const mainC = dashed ? bg : '#fff';
+    const subC  = dashed ? bg : 'rgba(255,255,255,.65)';
+
+    // 節點步驟名稱（頂部小字）
+    if (title) g.appendChild(mk('text', {
+      x:x+w/2, y:y+13, 'text-anchor':'middle',
+      fill: dashed ? bg : 'rgba(255,255,255,.65)',
+      'font-size':'9', 'font-family':'Noto Sans TC,sans-serif'
+    }, title));
+
     if (snip) {
-      const a = snip.slice(0,18), b = snip.slice(18,36);
-      g.appendChild(mk('text', {x:x+w/2, y:y+h-18, 'text-anchor':'middle', fill:tc2, 'font-size':'7.5', 'font-style':'italic', 'font-family':'Noto Sans TC,sans-serif'}, a));
-      if (b) g.appendChild(mk('text', {x:x+w/2, y:y+h-8, 'text-anchor':'middle', fill:tc2, 'font-size':'7.5', 'font-style':'italic', 'font-family':'Noto Sans TC,sans-serif'}, b+'…'));
+      // ── 有話術：決策關鍵句為主角（中央大字） ──
+      const line1 = snip.slice(0,15);
+      const line2 = snip.length > 15 ? snip.slice(15,30) + (snip.length > 30 ? '…' : '') : '';
+      const midY  = line2 ? y+h/2-6 : y+h/2+4;
+      g.appendChild(mk('text', {
+        x:x+w/2, y:midY, 'text-anchor':'middle',
+        fill:mainC, 'font-size':'12', 'font-weight':'700',
+        'font-family':'Noto Sans TC,sans-serif'
+      }, line1));
+      if (line2) g.appendChild(mk('text', {
+        x:x+w/2, y:midY+16, 'text-anchor':'middle',
+        fill:mainC, 'font-size':'11', 'font-weight':'700',
+        'font-family':'Noto Sans TC,sans-serif'
+      }, line2));
+      // 角色移到底部（小字附注）
+      if (role) g.appendChild(mk('text', {
+        x:x+w/2, y:y+h-6, 'text-anchor':'middle',
+        fill:subC, 'font-size':'8', 'font-family':'Noto Sans TC,sans-serif'
+      }, '— ' + role + ' —'));
+    } else {
+      // ── 無話術：角色為主角（中央大字） ──
+      g.appendChild(mk('text', {
+        x:x+w/2, y:y+h/2+6, 'text-anchor':'middle',
+        fill:mainC, 'font-size':'14', 'font-weight':'700',
+        'font-family':'Noto Sans TC,sans-serif'
+      }, role));
     }
     svg.appendChild(g);
   }
