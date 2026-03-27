@@ -243,55 +243,67 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7H0zfwDaNzNSi
 let allRecords = [];
 let filteredRecords = [];
 
-// ─── Load Data ───
-async function loadData() {
+// ─── Load Data（JSONP，完全不受 CORS 限制）───
+function loadData() {
   document.getElementById('loading-bar').style.display = 'block';
   document.getElementById('cards-container').innerHTML = '';
-  // 重置 stats 為載入中狀態
   ['stat-total','stat-laser','stat-icl','stat-clinics'].forEach(id => {
     document.getElementById(id).textContent = '…';
   });
 
-  try {
-    let url = APPS_SCRIPT_URL;
-    if (!url) { mockData(); return; }
+  if (!APPS_SCRIPT_URL) { mockData(); return; }
 
-    const clinic = document.getElementById('filter-clinic').value.trim();
-    const seniority = document.getElementById('filter-seniority').value;
-    if (clinic) url += '?clinic=' + encodeURIComponent(clinic);
-    if (seniority) url += (clinic ? '&' : '?') + 'seniority=' + encodeURIComponent(seniority);
+  const clinic    = document.getElementById('filter-clinic').value.trim();
+  const seniority = document.getElementById('filter-seniority').value;
+  const cbName    = '_cb_' + Date.now();
 
-    const res = await fetch(url, { redirect: 'follow' });
+  let url = APPS_SCRIPT_URL + '?callback=' + cbName;
+  if (clinic)    url += '&clinic='    + encodeURIComponent(clinic);
+  if (seniority) url += '&seniority=' + encodeURIComponent(seniority);
 
-    // 若回傳非 JSON（如 Apps Script 授權頁、錯誤頁），先取文字再嘗試解析
-    const text = await res.text();
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch(_) {
-      throw new Error('回傳格式錯誤（非 JSON）。可能原因：Apps Script 未授權、URL 已失效，或需重新部署。');
+  const timer = setTimeout(() => {
+    cleanup();
+    showError('連線逾時（10秒），請確認 Apps Script 已正常部署，或稍後再試。');
+  }, 10000);
+
+  function cleanup() {
+    clearTimeout(timer);
+    delete window[cbName];
+    const old = document.getElementById('jsonp-script');
+    if (old) old.remove();
+  }
+
+  window[cbName] = function(data) {
+    cleanup();
+    if (!Array.isArray(data)) {
+      showError('資料格式錯誤，請重新部署 Apps Script（需更新至最新版本）。');
+      return;
     }
-
-    if (!Array.isArray(parsed)) throw new Error('資料格式錯誤：預期為陣列，收到：' + typeof parsed);
-
-    allRecords = parsed;
+    allRecords = data;
     filteredRecords = [...allRecords];
     render();
     document.getElementById('update-info').textContent = '最後更新：' + new Date().toLocaleString('zh-TW');
+  };
 
-  } catch(e) {
-    document.getElementById('loading-bar').style.display = 'none';
-    ['stat-total','stat-laser','stat-icl','stat-clinics'].forEach(id => {
-      document.getElementById(id).textContent = '—';
-    });
-    document.getElementById('cards-container').innerHTML =
-      `<div class="empty-state">
-        <div class="icon">⚠️</div>
-        <p style="margin-bottom:8px">無法載入資料</p>
-        <p style="font-size:12px;color:#6b7280;max-width:480px;margin:0 auto 16px">${e.message || '網路錯誤，請稍後再試'}</p>
-        <button class="btn btn-white" style="background:#1a56db;color:#fff" onclick="loadData()">🔄 重新嘗試</button>
-      </div>`;
-  }
+  const script = document.createElement('script');
+  script.id  = 'jsonp-script';
+  script.src = url;
+  script.onerror = () => { cleanup(); showError('無法連線至 Apps Script，請確認部署網址正確。'); };
+  document.head.appendChild(script);
+}
+
+function showError(msg) {
+  document.getElementById('loading-bar').style.display = 'none';
+  ['stat-total','stat-laser','stat-icl','stat-clinics'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+  document.getElementById('cards-container').innerHTML =
+    `<div class="empty-state">
+      <div class="icon">⚠️</div>
+      <p style="margin-bottom:8px;font-weight:600">無法載入資料</p>
+      <p style="font-size:12px;color:#6b7280;max-width:480px;margin:0 auto 16px">${msg}</p>
+      <button class="btn" style="background:#1a56db;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer" onclick="loadData()">🔄 重新嘗試</button>
+    </div>`;
 }
 
 // ─── Mock data (for demo when URL not set) ───
