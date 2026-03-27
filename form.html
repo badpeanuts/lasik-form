@@ -666,90 +666,120 @@ function showResult(data) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ─── Build Flowchart SVG ───
+// ─── Build Flowchart SVG (三路分支決策樹 + 跨路徑導流) ───
 function buildFlowchart(data) {
   const svg = document.getElementById('flowchart-svg');
+  svg.setAttribute('viewBox', '0 0 960 640');
+  svg.style.minWidth = '760px';
+  svg.style.maxWidth = '960px';
   svg.innerHTML = '';
 
-  const excerpt = (text, len = 25) => text.length > len ? text.slice(0, len) + '…' : text;
+  // 話術摘要：固定最多20字，不影響節點尺寸
+  const ex = (t, n=20) => !t ? '' : (t.length > n ? t.slice(0,n)+'…' : t);
+  const ns = 'http://www.w3.org/2000/svg';
+  const mk = (tag, attrs, txt) => {
+    const e = document.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, String(v)));
+    if (txt !== undefined) e.textContent = txt;
+    return e;
+  };
 
-  const nodes = [
-    { id: 'arrive',   label: '到院識別',    role: '前台',   color: '#374151', snippet: '' },
-    { id: 'triage',   label: '術式分流',    role: '諮詢師', color: '#1a56db', snippet: '' },
-    { id: 'laser',    label: '雷射術式判斷', role: '諮詢師', color: '#3730a3', snippet: excerpt(data.smileVsLasik) },
-    { id: 'smilePro', label: 'SMILE Pro 推薦', role: '諮詢師', color: '#3730a3', snippet: excerpt(data.smileProScript) },
-    { id: 'discuss',  label: '術式溝通',    role: '諮詢師', color: '#1a56db', snippet: excerpt(data.bothCompare) },
-    { id: 'doctor',   label: '醫師確認',    role: '醫師',   color: '#374151', snippet: '' },
-    { id: 'close',    label: '締結',        role: '諮詢師', color: '#0e7e5c', snippet: excerpt(data.closingScript) },
-  ];
-
-  const W = 840, H = 220;
-  const nw = 100, nh = 80, gap = 20;
-  const totalW = nodes.length * nw + (nodes.length - 1) * gap;
-  const startX = (W - totalW) / 2;
-  const cy = H / 2;
-
-  // Draw arrows first (behind nodes)
-  nodes.forEach((n, i) => {
-    if (i === nodes.length - 1) return;
-    const x1 = startX + i * (nw + gap) + nw;
-    const x2 = startX + (i + 1) * (nw + gap);
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', x1); line.setAttribute('y1', cy);
-    line.setAttribute('x2', x2 - 6); line.setAttribute('y2', cy);
-    line.setAttribute('stroke', '#9ca3af'); line.setAttribute('stroke-width', '2');
-    line.setAttribute('marker-end', 'url(#arrowhead)');
-    svg.appendChild(line);
+  // ── Defs ──
+  const defs = mk('defs', {});
+  [['arr','#9ca3af'],['arr-b','#3730a3'],['arr-g','#0e7e5c'],['arr-v','#7c3aed']].forEach(([id,c]) => {
+    defs.innerHTML += `<marker id="${id}" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="${c}"/></marker>`;
   });
+  svg.appendChild(defs);
 
-  // Arrowhead marker
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-  defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-    <polygon points="0 0, 8 3, 0 6" fill="#9ca3af"/>
-  </marker>`;
-  svg.insertBefore(defs, svg.firstChild);
-
-  // Draw nodes
-  nodes.forEach((n, i) => {
-    const x = startX + i * (nw + gap);
-    const y = cy - nh / 2;
-
-    // Rect
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', x); rect.setAttribute('y', y);
-    rect.setAttribute('width', nw); rect.setAttribute('height', nh);
-    rect.setAttribute('rx', '10'); rect.setAttribute('ry', '10');
-    rect.setAttribute('fill', n.color); rect.setAttribute('opacity', '0.92');
-    svg.appendChild(rect);
-
-    // Node label (top)
-    const labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    labelEl.setAttribute('x', x + nw / 2); labelEl.setAttribute('y', y + 16);
-    labelEl.setAttribute('text-anchor', 'middle'); labelEl.setAttribute('fill', 'rgba(255,255,255,0.75)');
-    labelEl.setAttribute('font-size', '9'); labelEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
-    labelEl.textContent = n.label;
-    svg.appendChild(labelEl);
-
-    // Role (center)
-    const roleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    roleEl.setAttribute('x', x + nw / 2); roleEl.setAttribute('y', y + nh / 2 + 5);
-    roleEl.setAttribute('text-anchor', 'middle'); roleEl.setAttribute('fill', '#ffffff');
-    roleEl.setAttribute('font-size', '12'); roleEl.setAttribute('font-weight', '700');
-    roleEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
-    roleEl.textContent = n.role;
-    svg.appendChild(roleEl);
-
-    // Snippet (bottom italic)
-    if (n.snippet) {
-      const snipEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      snipEl.setAttribute('x', x + nw / 2); snipEl.setAttribute('y', y + nh - 10);
-      snipEl.setAttribute('text-anchor', 'middle'); snipEl.setAttribute('fill', 'rgba(255,255,255,0.8)');
-      snipEl.setAttribute('font-size', '7.5'); snipEl.setAttribute('font-style', 'italic');
-      snipEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
-      snipEl.textContent = n.snippet;
-      svg.appendChild(snipEl);
+  // ── 固定高度矩形節點（話術只取前20字，不撐高節點）──
+  function node(x, y, w, h, bg, title, role, snip, dashed=false) {
+    const g = mk('g', {});
+    if (dashed) {
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:bg, opacity:'0.07'}));
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:'none', stroke:bg, 'stroke-width':'1.8', 'stroke-dasharray':'6,3'}));
+    } else {
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:bg, opacity:'0.93'}));
     }
-  });
+    const tc = dashed ? bg : '#fff';
+    const tc2 = dashed ? '#6b7280' : 'rgba(255,255,255,.85)';
+    if (title) g.appendChild(mk('text', {x:x+w/2, y:y+14, 'text-anchor':'middle', fill:dashed?bg:'rgba(255,255,255,.7)', 'font-size':'9.5', 'font-family':'Noto Sans TC,sans-serif'}, title));
+    if (role)  g.appendChild(mk('text', {x:x+w/2, y:y+h/2+(snip?2:6), 'text-anchor':'middle', fill:tc, 'font-size':dashed?'11':'13', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, role));
+    if (snip) {
+      const a = snip.slice(0,18), b = snip.slice(18,36);
+      g.appendChild(mk('text', {x:x+w/2, y:y+h-18, 'text-anchor':'middle', fill:tc2, 'font-size':'7.5', 'font-style':'italic', 'font-family':'Noto Sans TC,sans-serif'}, a));
+      if (b) g.appendChild(mk('text', {x:x+w/2, y:y+h-8, 'text-anchor':'middle', fill:tc2, 'font-size':'7.5', 'font-style':'italic', 'font-family':'Noto Sans TC,sans-serif'}, b+'…'));
+    }
+    svg.appendChild(g);
+  }
+
+  function badge(x, y, w, h, color, label) {
+    const g = mk('g', {});
+    g.appendChild(mk('rect', {x, y, width:w, height:h, rx:8, fill:color, opacity:'0.12', stroke:color, 'stroke-width':'1.8'}));
+    g.appendChild(mk('text', {x:x+w/2, y:y+h/2+5, 'text-anchor':'middle', fill:color, 'font-size':'11', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, label));
+    svg.appendChild(g);
+  }
+
+  function arr(x1,y1,x2,y2, mid='arr', c='#9ca3af', dash=false) {
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
+    const attrs={x1,y1,x2:x2-dx/len*7,y2:y2-dy/len*7,stroke:c,'stroke-width':'1.8','marker-end':`url(#${mid})`};
+    if(dash) attrs['stroke-dasharray']='5,3';
+    svg.appendChild(mk('line',attrs));
+  }
+
+  function bent(x1,y1,x2,y2,c='#9ca3af',mid='arr',dash=false) {
+    const my=(y1+y2)/2;
+    const attrs={d:`M${x1} ${y1} L${x1} ${my} L${x2} ${my} L${x2} ${y2-7}`,fill:'none',stroke:c,'stroke-width':'1.8','marker-end':`url(#${mid})`};
+    if(dash) attrs['stroke-dasharray']='5,3';
+    svg.appendChild(mk('path',attrs));
+  }
+
+  // ── 固定版面（不隨話術長度改變）──
+  const NW=166, NH=78, TH=52;
+  const cxL=155, cxC=480, cxR=805;
+  const r0=10, r1=84, r2=182, r3=246, r4=348, r5=454, r6=554, r7=516;
+
+  // ── 連線 ──
+  arr(cxC, r0+TH, cxC, r1);
+  svg.appendChild(mk('line',{x1:cxC,y1:r1+NH,x2:cxC,y2:r2-8,stroke:'#9ca3af','stroke-width':'1.8'}));
+  svg.appendChild(mk('line',{x1:cxL,y1:r2-8,x2:cxR,y2:r2-8,stroke:'#9ca3af','stroke-width':'1.5'}));
+  arr(cxL,r2-8,cxL,r2); arr(cxC,r2-8,cxC,r2); arr(cxR,r2-8,cxR,r2);
+  arr(cxL,r2+38,cxL,r3); arr(cxC,r2+38,cxC,r3); arr(cxR,r2+38,cxR,r3);
+  arr(cxL,r3+NH,cxL,r4); arr(cxC,r3+NH,cxC,r4); arr(cxR,r3+NH,cxR,r4);
+  // 虛線：導流節點
+  arr(cxL,r4+NH,cxL,r5,'arr-b','#3730a3',true);
+  arr(cxR,r4+NH,cxR,r5,'arr-g','#0e7e5c',true);
+  // 三路→合流
+  const merY=r6-20;
+  svg.appendChild(mk('path',{d:`M${cxL} ${r5+NH} L${cxL} ${merY} L${cxC} ${merY} L${cxC} ${r6-7}`,fill:'none',stroke:'#9ca3af','stroke-width':'1.8','marker-end':'url(#arr)'}));
+  arr(cxC,r4+NH,cxC,r6);
+  svg.appendChild(mk('path',{d:`M${cxR} ${r5+NH} L${cxR} ${merY} L${cxC} ${merY} L${cxC} ${r6-7}`,fill:'none',stroke:'#9ca3af','stroke-width':'1.8'}));
+  arr(cxC,r6+TH,cxC,r6+TH+30);
+  // 選擇引導出口標示
+  svg.appendChild(mk('text',{x:cxC-68,y:r4+NH+16,fill:'#3730a3','font-size':'9','font-weight':'700','font-family':'Noto Sans TC,sans-serif'},'→ 選雷射'));
+  svg.appendChild(mk('text',{x:cxC+18,y:r4+NH+16,fill:'#0e7e5c','font-size':'9','font-weight':'700','font-family':'Noto Sans TC,sans-serif'},'→ 選 ICL'));
+
+  // ── 節點繪製 ──
+  node(cxC-NW/2, r0, NW, TH, '#374151', '到院識別', '前台', '');
+  node(cxC-NW/2, r1, NW, NH, '#1a56db', '術前評估 / 客群識別', '諮詢師', ex(data.clientDiff));
+
+  badge(cxL-72, r2, 144, 38, '#3730a3', '✔ 符合雷射');
+  badge(cxC-72, r2, 144, 38, '#7c3aed', '✔ 兩者都符合');
+  badge(cxR-80, r2, 160, 38, '#0e7e5c', '✔ 不符合 / ICL 預約');
+
+  node(cxL-NW/2, r3, NW, NH, '#3730a3', 'SMILE vs LASIK 判斷', '諮詢師', ex(data.smileVsLasik));
+  node(cxC-NW/2, r3, NW, NH, '#7c3aed', '術式比較說明', '諮詢師', ex(data.bothCompare));
+  node(cxR-NW/2, r3, NW, NH, '#0e7e5c', 'ICL 說明', '諮詢師', ex(data.iclToLaser));
+
+  node(cxL-NW/2, r4, NW, NH, '#3730a3', 'SMILE Pro 3.0 Max 推薦', '諮詢師', ex(data.smileProScript));
+  node(cxC-NW/2, r4, NW, NH, '#7c3aed', '選擇引導話術', '諮詢師', ex(data.bothWhichBetter));
+  node(cxR-NW/2, r4, NW, NH, '#0e7e5c', 'ICL→雷射 轉向條件', '諮詢師', ex(data.iclToLaser));
+
+  // 虛線導流節點
+  node(cxL-NW/2, r5, NW, NH, '#3730a3', '雷射→ICL 導入時機', '諮詢師（視情況）', ex(data.laserToIcl), true);
+  node(cxR-NW/2, r5, NW, NH, '#0e7e5c', 'ICL→雷射 轉向時機', '諮詢師（視情況）', ex(data.iclToLaser), true);
+
+  node(cxC-NW/2, r6, NW, TH, '#374151', '醫師確認', '醫師', '');
+  node(cxC-NW/2, r6+TH+30, NW, 52, '#0e7e5c', '締結', '諮詢師', ex(data.closingScript,24));
 }
 
 // ─── Reset ───
