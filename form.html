@@ -455,7 +455,7 @@
 
   <!-- Action buttons -->
   <div class="btn-row">
-    <button class="btn btn-print" onclick="window.print()">🖨️ 列印 / 儲存 PDF</button>
+    <button class="btn btn-print" onclick="handleSave()">🖨️ 列印 / 儲存 PDF</button>
     <button class="btn btn-reset" onclick="resetForm()">🔄 重新填寫</button>
   </div>
 </div><!-- /result-page -->
@@ -632,6 +632,8 @@ async function submitForm() {
     try {
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ ...data, timestamp: new Date().toISOString() }),
       });
     } catch(e) { console.warn('送出失敗，仍顯示本地結果', e); }
@@ -641,6 +643,23 @@ async function submitForm() {
     overlay.classList.remove('show');
     showResult(data);
   }, 1200);
+}
+
+// ─── Save / Print ───
+function handleSave() {
+  const isLine = /Line\//i.test(navigator.userAgent);
+  const isIOS  = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isLine) {
+    // LINE 內建瀏覽器不支援 print，引導開啟外部瀏覽器
+    alert('LINE 瀏覽器不支援直接儲存 PDF。\n\n請點右上角 ••• → 選擇「在瀏覽器中開啟」（Safari 或 Chrome），再按分享鍵 → 「列印」→ 縮放成 PDF 即可儲存。');
+    return;
+  }
+  if (isIOS) {
+    // iOS Safari：print() 可用，但需提示步驟
+    alert('即將開啟列印畫面。\n點「分享」→「列印」→ 雙指撐開預覽圖 → 再點分享 → 「儲存為 PDF」。');
+  }
+  window.print();
 }
 
 // ─── Show Result ───
