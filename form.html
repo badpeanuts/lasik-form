@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>屈光術式話術填寫系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1a56db;
+    --primary-dark: #1e429f;
+    --indigo: #3730a3;
+    --green: #0e7e5c;
+    --gray-text: #1a1916;
+    --gray-mid: #6b7280;
+    --gray-light: #f3f4f6;
+    --gray-border: #d1d5db;
+    --white: #ffffff;
+    --radius: 12px;
+  }
+  html, body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--white);
+    color: var(--gray-text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  #app { max-width: 600px; margin: 0 auto; padding: 0 0 40px; }
+
+  /* ── Header ── */
+  .header {
+    background: var(--primary);
+    color: var(--white);
+    padding: 20px 20px 16px;
+    position: sticky; top: 0; z-index: 10;
+    box-shadow: 0 2px 8px rgba(26,86,219,.25);
+  }
+  .header-title { font-size: 16px; font-weight: 700; letter-spacing: .5px; }
+  .header-sub { font-size: 12px; opacity: .85; margin-top: 2px; }
+
+  /* ── Progress ── */
+  .progress-wrap { padding: 0 20px; margin: 0; background: var(--primary); padding-bottom: 14px; }
+  .progress-label { color: rgba(255,255,255,.9); font-size: 12px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar-bg { background: rgba(255,255,255,.3); border-radius: 99px; height: 6px; }
+  .progress-bar-fill { background: var(--white); border-radius: 99px; height: 6px; transition: width .4s ease; }
+
+  /* ── Step Card ── */
+  .step { display: none; padding: 24px 20px 8px; }
+  .step.active { display: block; }
+  .step-title {
+    font-size: 18px; font-weight: 700; color: var(--primary);
+    margin-bottom: 4px; line-height: 1.4;
+  }
+  .step-subtitle {
+    font-size: 13px; color: var(--gray-mid); margin-bottom: 20px;
+  }
+
+  /* ── Form Elements ── */
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block; font-size: 14px; font-weight: 500;
+    color: var(--gray-text); margin-bottom: 8px;
+  }
+  .field label .req { color: var(--primary); margin-left: 3px; }
+
+  input[type="text"] {
+    width: 100%; padding: 12px 14px;
+    border: 2px solid var(--gray-border); border-radius: var(--radius);
+    font-family: inherit; font-size: 15px; color: var(--gray-text);
+    background: var(--white); transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--primary); }
+
+  textarea {
+    width: 100%; padding: 14px 14px;
+    border: 2px solid var(--gray-border); border-radius: var(--radius);
+    font-family: inherit; font-size: 14px; color: var(--gray-text);
+    background: var(--white); resize: vertical;
+    transition: border-color .2s; line-height: 1.7;
+    -webkit-appearance: none;
+  }
+  textarea:focus { outline: none; border-color: var(--primary); }
+  textarea.tall { min-height: 160px; }
+  textarea.medium { min-height: 140px; }
+  textarea.short { min-height: 120px; }
+  textarea.xshort { min-height: 180px; }
+
+  .free-hint {
+    font-size: 12px; color: var(--gray-mid); margin-top: 6px;
+    padding: 6px 10px; background: var(--gray-light); border-radius: 6px;
+  }
+
+  /* ── Radio / Seniority ── */
+  .radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+  .radio-btn {
+    flex: 1; min-width: 80px;
+    padding: 10px 8px; text-align: center;
+    border: 2px solid var(--gray-border); border-radius: 10px;
+    font-size: 13px; font-weight: 500; color: var(--gray-mid);
+    cursor: pointer; transition: all .2s; user-select: none;
+  }
+  .radio-btn.selected {
+    border-color: var(--primary); background: #eff6ff; color: var(--primary);
+  }
+
+  /* ── Slider ── */
+  .slider-wrap { margin-bottom: 4px; }
+  .slider-display {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--gray-light); border-radius: 10px; padding: 10px 16px;
+    margin-bottom: 10px; font-size: 14px;
+  }
+  .slider-display .laser-val { color: var(--primary); font-weight: 700; font-size: 18px; }
+  .slider-display .icl-val { color: #7c3aed; font-weight: 700; font-size: 18px; }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 6px;
+    background: var(--gray-border); border-radius: 99px; outline: none;
+    margin-bottom: 6px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 24px; height: 24px;
+    background: var(--primary); border-radius: 50%;
+    border: 3px solid var(--white); box-shadow: 0 0 0 2px var(--primary);
+    cursor: pointer;
+  }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-mid); }
+
+  /* ── Summary ── */
+  .summary-block { background: var(--gray-light); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+  .summary-block h4 { font-size: 13px; color: var(--primary); font-weight: 700; margin-bottom: 8px; }
+  .summary-item { font-size: 13px; color: var(--gray-text); margin-bottom: 4px; line-height: 1.5; }
+  .summary-item strong { color: var(--gray-text); }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 12px; padding: 20px 20px 0; }
+  .btn {
+    flex: 1; padding: 14px 20px; border: none; border-radius: var(--radius);
+    font-family: inherit; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: all .2s; -webkit-tap-highlight-color: transparent;
+  }
+  .btn-next { background: var(--primary); color: var(--white); }
+  .btn-next:active { background: var(--primary-dark); transform: scale(.98); }
+  .btn-prev { background: var(--gray-light); color: var(--gray-mid); }
+  .btn-prev:active { background: #e5e7eb; transform: scale(.98); }
+  .btn-submit { background: var(--primary); color: var(--white); font-size: 16px; }
+  .btn-submit:active { background: var(--primary-dark); transform: scale(.98); }
+  .btn-reset { background: var(--gray-light); color: var(--gray-mid); }
+  .btn-print { background: var(--green); color: var(--white); }
+  .btn-print:active { transform: scale(.98); }
+
+  /* ── Loading ── */
+  #loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(255,255,255,.9); z-index: 100;
+    flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  #loading-overlay.show { display: flex; }
+  .spinner {
+    width: 44px; height: 44px; border: 4px solid var(--gray-border);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Result Page ── */
+  #result-page { display: none; padding: 0 0 40px; }
+  #result-page.show { display: block; }
+  .result-header {
+    background: var(--primary); color: var(--white);
+    padding: 20px 20px 18px;
+  }
+  .result-header h2 { font-size: 17px; font-weight: 700; }
+  .result-header p { font-size: 12px; opacity: .85; margin-top: 4px; }
+
+  /* ── SVG Flowchart ── */
+  .chart-wrap { padding: 20px; overflow-x: auto; }
+  .chart-wrap h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 14px; }
+  #flowchart-svg { min-width: 700px; display: block; margin: 0 auto; }
+  .chart-caption {
+    text-align: center; font-size: 13px; color: var(--gray-mid);
+    margin-top: 10px; padding: 0 20px;
+  }
+
+  /* ── Talkscript Blocks ── */
+  .script-section { padding: 0 20px; }
+  .script-block { margin-bottom: 18px; }
+  .script-block h4 {
+    font-size: 14px; font-weight: 700; color: var(--primary);
+    padding: 8px 12px; background: #eff6ff;
+    border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0;
+    margin-bottom: 0;
+  }
+  .script-content {
+    background: var(--gray-light); border-radius: 0 0 10px 10px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.8;
+    white-space: pre-wrap; color: var(--gray-text);
+    border: 1px solid var(--gray-border); border-top: none;
+  }
+
+  /* ── Error ── */
+  .error-msg { color: #dc2626; font-size: 12px; margin-top: 6px; display: none; }
+  .error-msg.show { display: block; }
+  input.invalid, textarea.invalid { border-color: #dc2626; }
+
+  /* ── Print ── */
+  @media print {
+    .header, .progress-wrap, .btn-row, #form-page { display: none !important; }
+    #result-page { display: block !important; }
+    .result-header { background: #1a56db !important; -webkit-print-color-adjust: exact; }
+  }
+
+  @media (max-width: 400px) {
+    .step-title { font-size: 16px; }
+    .btn { font-size: 14px; padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div style="font-size:15px;color:#1a1916;font-weight:500;">正在產出您的話術流程圖…</div>
+</div>
+
+<!-- ══════════════════ FORM PAGE ══════════════════ -->
+<div id="form-page">
+  <div id="form-header">
+    <div class="header">
+      <div class="header-title">屈光術式話術填寫系統</div>
+      <div class="header-sub">大學眼科屈光雷射部門</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="step-label">Step 1 / 9</span>
+        <span id="step-name">諮詢員資訊</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill" style="width:11.1%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app">
+
+    <!-- Step 1 -->
+    <div class="step active" id="step-1">
+      <div class="step-title">👋 基本資訊</div>
+      <div class="step-subtitle">讓我們先認識你</div>
+
+      <div class="field">
+        <label>姓名 <span class="req">*</span></label>
+        <input type="text" id="f-name" placeholder="請輸入您的姓名">
+        <div class="error-msg" id="err-name">請填寫姓名</div>
+      </div>
+      <div class="field">
+        <label>診所 <span class="req">*</span></label>
+        <input type="text" id="f-clinic" placeholder="請輸入診所名稱">
+        <div class="error-msg" id="err-clinic">請填寫診所名稱</div>
+      </div>
+      <div class="field">
+        <label>年資 <span class="req">*</span></label>
+        <div class="radio-group">
+          <div class="radio-btn" data-group="seniority" data-val="1年以下">1年以下</div>
+          <div class="radio-btn" data-group="seniority" data-val="1–3年">1–3年</div>
+          <div class="radio-btn" data-group="seniority" data-val="3年以上">3年以上</div>
+        </div>
+        <div class="error-msg" id="err-seniority">請選擇年資</div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step" id="step-2">
+      <div class="step-title">📊 客戶來源認知</div>
+      <div class="step-subtitle">你接到的客人，大概幾成是以近視雷射為主要目的來的？幾成是以 EVO ICL 為主要目的來的？</div>
+
+      <div class="field">
+        <div class="slider-display">
+          <div>
+            <div style="font-size:12px;color:#6b7280;">近視雷射客</div>
+            <span class="laser-val" id="laser-display">60%</span>
+          </div>
+          <div style="font-size:20px;color:#d1d5db;">↔</div>
+          <div style="text-align:right">
+            <div style="font-size:12px;color:#6b7280;">EVO ICL 客</div>
+            <span class="icl-val" id="icl-display">40%</span>
+          </div>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" id="f-laser-ratio" min="0" max="100" value="60" step="5">
+          <div class="slider-labels"><span>雷射 100%</span><span>各半</span><span>ICL 100%</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>你覺得這兩類客人，在態度或需求上有什麼明顯不同？ <span class="req">*</span></label>
+        <textarea id="f-client-diff" class="tall" placeholder="請用自己的話描述，例如：雷射客通常…，ICL客通常…"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-client-diff">請填寫觀察內容</div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step" id="step-3">
+      <div class="step-title">🔵 先聊近視雷射——</div>
+      <div class="step-subtitle">Step 3 / 9</div>
+
+      <div class="field">
+        <label>你怎麼判斷一個客人適合做 SMILE 還是 LASIK？你的切入點是什麼？請把你的判斷邏輯和實際說的話寫出來。 <span class="req">*</span></label>
+        <textarea id="f-smile-vs-lasik" class="tall" placeholder="例如：你會先問什麼、看什麼數據、還是從客人說的話判斷……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-smile-vs-lasik">請填寫您的判斷邏輯</div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step" id="step-4">
+      <div class="step-title">✨ 當客人選擇小傷口術式——</div>
+      <div class="step-subtitle">Step 4 / 9</div>
+
+      <div class="field">
+        <label>如果客人已經傾向做小傷口的術式，你會怎麼介紹和推薦 SMILE Pro 3.0 Max？你的切入點和話術是什麼？ <span class="req">*</span></label>
+        <textarea id="f-smile-pro" class="tall" placeholder="請把你平常說給客人聽的版本寫出來，包括你強調的重點、用的比喻或說法……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-smile-pro">請填寫推薦話術</div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step" id="step-5">
+      <div class="step-title">🔀 還是在近視雷射的話題上——</div>
+      <div class="step-subtitle">Step 5 / 9</div>
+
+      <div class="field">
+        <label>在什麼情況下你會開始介紹 EVO ICL？你通常怎麼說？請把你實際說的話寫出來，越自然越好。 <span class="req">*</span></label>
+        <textarea id="f-laser-to-icl" class="tall" placeholder="請直接描述你的經驗，例如：什麼樣的客人、什麼時間點、你怎麼開口……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-laser-to-icl">請填寫導入時機與話術</div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step" id="step-6">
+      <div class="step-title">🔄 換到 EVO ICL 的話題——</div>
+      <div class="step-subtitle">Step 6 / 9</div>
+
+      <div class="field">
+        <label>當客人是預約 EVO ICL 來的，在什麼情況下你會轉而介紹近視雷射？你通常怎麼說？請把你實際說的話寫出來。 <span class="req">*</span></label>
+        <textarea id="f-icl-to-laser" class="tall" placeholder="請描述是什麼讓你決定轉換方向，以及你怎麼開口……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-icl-to-laser">請填寫轉換時機與話術</div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step" id="step-7">
+      <div class="step-title">⚖️ 當客人兩種都想了解——</div>
+      <div class="step-subtitle">Step 7 / 9</div>
+
+      <div class="field">
+        <label>你怎麼幫客人區分雷射和 EVO ICL 的差別？你說給客人聽的版本是什麼？ <span class="req">*</span></label>
+        <textarea id="f-both-compare" class="medium" placeholder="請盡量還原你平常解釋給客人聽的方式……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-both-compare">請填寫比較說明方式</div>
+      </div>
+      <div class="field">
+        <label>當客人問「那我要選哪個比較好？」你怎麼回答？ <span class="req">*</span></label>
+        <textarea id="f-both-which" class="short" placeholder="請把你的回應方式寫出來……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-both-which">請填寫回應方式</div>
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="step" id="step-8">
+      <div class="step-title">🎯 在決定要把締結重點放在哪個術式之前——</div>
+      <div class="step-subtitle">Step 8 / 9</div>
+
+      <div class="field">
+        <label>你會從客人身上收集哪些資訊來幫你做這個判斷？你最後怎麼開口做締結？請把你的思考過程和實際說的話都寫出來。 <span class="req">*</span></label>
+        <textarea id="f-closing" class="xshort" placeholder="請描述你判斷的邏輯，以及你最後說的締結話術……"></textarea>
+        <div class="free-hint">這裡沒有標準答案，請用你自己的話回答</div>
+        <div class="error-msg" id="err-closing">請填寫締結邏輯與話術</div>
+      </div>
+    </div>
+
+    <!-- Step 9 -->
+    <div class="step" id="step-9">
+      <div class="step-title">✅ 確認送出</div>
+      <div class="step-subtitle">請確認以下資訊都正確，送出後將自動產出您的話術流程圖</div>
+      <div id="summary-container"></div>
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- Navigation buttons -->
+  <div class="btn-row" id="nav-btns">
+    <button class="btn btn-prev" id="btn-prev" style="display:none" onclick="prevStep()">← 上一步</button>
+    <button class="btn btn-next" id="btn-next" onclick="nextStep()">下一步 →</button>
+  </div>
+</div><!-- /form-page -->
+
+<!-- ══════════════════ RESULT PAGE ══════════════════ -->
+<div id="result-page">
+  <div class="result-header">
+    <h2 id="res-title">的個人話術諮詢流程圖</h2>
+    <p id="res-sub">大學眼科屈光雷射部門</p>
+  </div>
+
+  <!-- Flowchart -->
+  <div class="chart-wrap">
+    <h3>📊 諮詢流程圖（含關鍵話術節點）</h3>
+    <svg id="flowchart-svg" viewBox="0 0 840 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:840px;min-width:700px;"></svg>
+    <div class="chart-caption" id="chart-caption"></div>
+  </div>
+
+  <!-- Talkscripts -->
+  <div class="script-section">
+    <div style="font-size:15px;font-weight:700;color:#1a1916;margin-bottom:16px;padding-top:4px;">📝 完整話術稿</div>
+
+    <div class="script-block">
+      <h4>【SMILE vs LASIK 判斷邏輯與話術】</h4>
+      <div class="script-content" id="sc-smile-vs-lasik"></div>
+    </div>
+    <div class="script-block">
+      <h4>【SMILE Pro 3.0 Max 推薦話術】</h4>
+      <div class="script-content" id="sc-smile-pro"></div>
+    </div>
+    <div class="script-block">
+      <h4>【近視雷射客 → 導入 ICL 的時機與話術】</h4>
+      <div class="script-content" id="sc-laser-to-icl"></div>
+    </div>
+    <div class="script-block">
+      <h4>【EVO ICL 客 → 轉向雷射的時機與話術】</h4>
+      <div class="script-content" id="sc-icl-to-laser"></div>
+    </div>
+    <div class="script-block">
+      <h4>【兩種術式都有興趣的客人】</h4>
+      <div class="script-content">
+        <div style="font-weight:600;color:#374151;margin-bottom:4px;">如何區分說明：</div>
+        <div id="sc-both-compare" style="margin-bottom:14px;"></div>
+        <div style="font-weight:600;color:#374151;margin-bottom:4px;">當客人問選哪個：</div>
+        <div id="sc-both-which"></div>
+      </div>
+    </div>
+    <div class="script-block">
+      <h4>【締結判斷與話術】</h4>
+      <div class="script-content" id="sc-closing"></div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="btn-row">
+    <button class="btn btn-print" onclick="window.print()">🖨️ 列印 / 儲存 PDF</button>
+    <button class="btn btn-reset" onclick="resetForm()">🔄 重新填寫</button>
+  </div>
+</div><!-- /result-page -->
+
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7H0zfwDaNzNSiCDD9E8MWlCMylLs4kSzmEqMvLg8OVbwY-t5IN1UYotP-6-e3gTmPAg/exec';
+
+// ─── State ───
+let currentStep = 1;
+const TOTAL_STEPS = 9;
+const selections = { seniority: '' };
+
+// ─── DOM refs ───
+const progressFill = document.getElementById('progress-fill');
+const stepLabel = document.getElementById('step-label');
+const stepName = document.getElementById('step-name');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+
+const stepNames = ['諮詢員資訊','客戶來源認知','SMILE vs LASIK 判斷','SMILE Pro 推薦話術','雷射→ICL 導流','ICL→雷射 轉向','兩種術式比較','締結判斷','確認送出'];
+
+// ─── Slider ───
+const laserSlider = document.getElementById('f-laser-ratio');
+const laserDisplay = document.getElementById('laser-display');
+const iclDisplay = document.getElementById('icl-display');
+laserSlider.addEventListener('input', () => {
+  laserDisplay.textContent = laserSlider.value + '%';
+  iclDisplay.textContent = (100 - laserSlider.value) + '%';
+});
+
+// ─── Radio buttons ───
+document.querySelectorAll('.radio-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const group = this.dataset.group;
+    document.querySelectorAll(`.radio-btn[data-group="${group}"]`).forEach(b => b.classList.remove('selected'));
+    this.classList.add('selected');
+    selections[group] = this.dataset.val;
+  });
+});
+
+// ─── Validation ───
+function validateStep(step) {
+  let ok = true;
+  const clear = (id) => { const el = document.getElementById(id); if(el){ el.classList.remove('show'); } };
+  const show = (id, fieldId) => {
+    const el = document.getElementById(id); if(el) el.classList.add('show');
+    const f = document.getElementById(fieldId); if(f) f.classList.add('invalid');
+    ok = false;
+  };
+
+  if (step === 1) {
+    clear('err-name'); clear('err-clinic'); clear('err-seniority');
+    document.getElementById('f-name').classList.remove('invalid');
+    document.getElementById('f-clinic').classList.remove('invalid');
+    if (!document.getElementById('f-name').value.trim()) show('err-name','f-name');
+    if (!document.getElementById('f-clinic').value.trim()) show('err-clinic','f-clinic');
+    if (!selections.seniority) { document.getElementById('err-seniority').classList.add('show'); ok = false; }
+  }
+  if (step === 2) {
+    clear('err-client-diff'); document.getElementById('f-client-diff').classList.remove('invalid');
+    if (!document.getElementById('f-client-diff').value.trim()) show('err-client-diff','f-client-diff');
+  }
+  if (step === 3) {
+    clear('err-smile-vs-lasik'); document.getElementById('f-smile-vs-lasik').classList.remove('invalid');
+    if (!document.getElementById('f-smile-vs-lasik').value.trim()) show('err-smile-vs-lasik','f-smile-vs-lasik');
+  }
+  if (step === 4) {
+    clear('err-smile-pro'); document.getElementById('f-smile-pro').classList.remove('invalid');
+    if (!document.getElementById('f-smile-pro').value.trim()) show('err-smile-pro','f-smile-pro');
+  }
+  if (step === 5) {
+    clear('err-laser-to-icl'); document.getElementById('f-laser-to-icl').classList.remove('invalid');
+    if (!document.getElementById('f-laser-to-icl').value.trim()) show('err-laser-to-icl','f-laser-to-icl');
+  }
+  if (step === 6) {
+    clear('err-icl-to-laser'); document.getElementById('f-icl-to-laser').classList.remove('invalid');
+    if (!document.getElementById('f-icl-to-laser').value.trim()) show('err-icl-to-laser','f-icl-to-laser');
+  }
+  if (step === 7) {
+    clear('err-both-compare'); clear('err-both-which');
+    document.getElementById('f-both-compare').classList.remove('invalid');
+    document.getElementById('f-both-which').classList.remove('invalid');
+    if (!document.getElementById('f-both-compare').value.trim()) show('err-both-compare','f-both-compare');
+    if (!document.getElementById('f-both-which').value.trim()) show('err-both-which','f-both-which');
+  }
+  if (step === 8) {
+    clear('err-closing'); document.getElementById('f-closing').classList.remove('invalid');
+    if (!document.getElementById('f-closing').value.trim()) show('err-closing','f-closing');
+  }
+  return ok;
+}
+
+// ─── Navigation ───
+function updateUI() {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-' + currentStep).classList.add('active');
+  const pct = (currentStep / TOTAL_STEPS * 100).toFixed(1);
+  progressFill.style.width = pct + '%';
+  stepLabel.textContent = 'Step ' + currentStep + ' / ' + TOTAL_STEPS;
+  stepName.textContent = stepNames[currentStep - 1];
+  btnPrev.style.display = currentStep > 1 ? 'flex' : 'none';
+  btnNext.textContent = currentStep === 9 ? '產出我的話術流程圖 🚀' : '下一步 →';
+  btnNext.className = currentStep === 9 ? 'btn btn-submit' : 'btn btn-next';
+  if (currentStep === 9) buildSummary();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextStep() {
+  if (!validateStep(currentStep)) return;
+  if (currentStep < TOTAL_STEPS) {
+    currentStep++;
+    updateUI();
+  } else {
+    submitForm();
+  }
+}
+function prevStep() {
+  if (currentStep > 1) { currentStep--; updateUI(); }
+}
+
+// ─── Build Summary (Step 9) ───
+function buildSummary() {
+  const data = collectData();
+  const c = document.getElementById('summary-container');
+  c.innerHTML = `
+    <div class="summary-block">
+      <h4>基本資訊</h4>
+      <div class="summary-item"><strong>姓名：</strong>${data.consultantName}</div>
+      <div class="summary-item"><strong>診所：</strong>${data.clinic}</div>
+      <div class="summary-item"><strong>年資：</strong>${data.seniority}</div>
+      <div class="summary-item"><strong>客群分布：</strong>雷射 ${data.laserRatio}% ／ ICL ${data.iclRatio}%</div>
+    </div>
+    <div class="summary-block">
+      <h4>已填寫的話術區塊</h4>
+      ${[
+        ['SMILE vs LASIK 判斷', data.smileVsLasik],
+        ['SMILE Pro 3.0 Max 推薦', data.smileProScript],
+        ['雷射→ICL 導入', data.laserToIcl],
+        ['ICL→雷射 轉向', data.iclToLaser],
+        ['兩種術式比較', data.bothCompare],
+        ['締結判斷', data.closingScript],
+      ].map(([k,v]) => `<div class="summary-item">✅ ${k}（${v.length} 字）</div>`).join('')}
+    </div>
+  `;
+}
+
+// ─── Collect Data ───
+function collectData() {
+  return {
+    consultantName: document.getElementById('f-name').value.trim(),
+    clinic: document.getElementById('f-clinic').value.trim(),
+    seniority: selections.seniority,
+    laserRatio: parseInt(laserSlider.value),
+    iclRatio: 100 - parseInt(laserSlider.value),
+    clientDiff: document.getElementById('f-client-diff').value.trim(),
+    smileVsLasik: document.getElementById('f-smile-vs-lasik').value.trim(),
+    smileProScript: document.getElementById('f-smile-pro').value.trim(),
+    laserToIcl: document.getElementById('f-laser-to-icl').value.trim(),
+    iclToLaser: document.getElementById('f-icl-to-laser').value.trim(),
+    bothCompare: document.getElementById('f-both-compare').value.trim(),
+    bothWhichBetter: document.getElementById('f-both-which').value.trim(),
+    closingScript: document.getElementById('f-closing').value.trim(),
+  };
+}
+
+// ─── Submit ───
+async function submitForm() {
+  const data = collectData();
+  const overlay = document.getElementById('loading-overlay');
+  overlay.classList.add('show');
+
+  if (APPS_SCRIPT_URL) {
+    try {
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ ...data, timestamp: new Date().toISOString() }),
+      });
+    } catch(e) { console.warn('送出失敗，仍顯示本地結果', e); }
+  }
+
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    showResult(data);
+  }, 1200);
+}
+
+// ─── Show Result ───
+function showResult(data) {
+  document.getElementById('form-page').style.display = 'none';
+  const rp = document.getElementById('result-page');
+  rp.classList.add('show');
+
+  document.getElementById('res-title').textContent = data.consultantName + '（' + data.clinic + '）的個人話術諮詢流程圖';
+  document.getElementById('chart-caption').textContent =
+    data.consultantName + '（' + data.clinic + '）的客群分布：雷射 ' + data.laserRatio + '% ／ ICL ' + data.iclRatio + '%';
+
+  // Talkscript texts
+  document.getElementById('sc-smile-vs-lasik').textContent = data.smileVsLasik;
+  document.getElementById('sc-smile-pro').textContent = data.smileProScript;
+  document.getElementById('sc-laser-to-icl').textContent = data.laserToIcl;
+  document.getElementById('sc-icl-to-laser').textContent = data.iclToLaser;
+  document.getElementById('sc-both-compare').textContent = data.bothCompare;
+  document.getElementById('sc-both-which').textContent = data.bothWhichBetter;
+  document.getElementById('sc-closing').textContent = data.closingScript;
+
+  buildFlowchart(data);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── Build Flowchart SVG ───
+function buildFlowchart(data) {
+  const svg = document.getElementById('flowchart-svg');
+  svg.innerHTML = '';
+
+  const excerpt = (text, len = 25) => text.length > len ? text.slice(0, len) + '…' : text;
+
+  const nodes = [
+    { id: 'arrive',   label: '到院識別',    role: '前台',   color: '#374151', snippet: '' },
+    { id: 'triage',   label: '術式分流',    role: '諮詢師', color: '#1a56db', snippet: '' },
+    { id: 'laser',    label: '雷射術式判斷', role: '諮詢師', color: '#3730a3', snippet: excerpt(data.smileVsLasik) },
+    { id: 'smilePro', label: 'SMILE Pro 推薦', role: '諮詢師', color: '#3730a3', snippet: excerpt(data.smileProScript) },
+    { id: 'discuss',  label: '術式溝通',    role: '諮詢師', color: '#1a56db', snippet: excerpt(data.bothCompare) },
+    { id: 'doctor',   label: '醫師確認',    role: '醫師',   color: '#374151', snippet: '' },
+    { id: 'close',    label: '締結',        role: '諮詢師', color: '#0e7e5c', snippet: excerpt(data.closingScript) },
+  ];
+
+  const W = 840, H = 220;
+  const nw = 100, nh = 80, gap = 20;
+  const totalW = nodes.length * nw + (nodes.length - 1) * gap;
+  const startX = (W - totalW) / 2;
+  const cy = H / 2;
+
+  // Draw arrows first (behind nodes)
+  nodes.forEach((n, i) => {
+    if (i === nodes.length - 1) return;
+    const x1 = startX + i * (nw + gap) + nw;
+    const x2 = startX + (i + 1) * (nw + gap);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', cy);
+    line.setAttribute('x2', x2 - 6); line.setAttribute('y2', cy);
+    line.setAttribute('stroke', '#9ca3af'); line.setAttribute('stroke-width', '2');
+    line.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(line);
+  });
+
+  // Arrowhead marker
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#9ca3af"/>
+  </marker>`;
+  svg.insertBefore(defs, svg.firstChild);
+
+  // Draw nodes
+  nodes.forEach((n, i) => {
+    const x = startX + i * (nw + gap);
+    const y = cy - nh / 2;
+
+    // Rect
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', nw); rect.setAttribute('height', nh);
+    rect.setAttribute('rx', '10'); rect.setAttribute('ry', '10');
+    rect.setAttribute('fill', n.color); rect.setAttribute('opacity', '0.92');
+    svg.appendChild(rect);
+
+    // Node label (top)
+    const labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    labelEl.setAttribute('x', x + nw / 2); labelEl.setAttribute('y', y + 16);
+    labelEl.setAttribute('text-anchor', 'middle'); labelEl.setAttribute('fill', 'rgba(255,255,255,0.75)');
+    labelEl.setAttribute('font-size', '9'); labelEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
+    labelEl.textContent = n.label;
+    svg.appendChild(labelEl);
+
+    // Role (center)
+    const roleEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    roleEl.setAttribute('x', x + nw / 2); roleEl.setAttribute('y', y + nh / 2 + 5);
+    roleEl.setAttribute('text-anchor', 'middle'); roleEl.setAttribute('fill', '#ffffff');
+    roleEl.setAttribute('font-size', '12'); roleEl.setAttribute('font-weight', '700');
+    roleEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
+    roleEl.textContent = n.role;
+    svg.appendChild(roleEl);
+
+    // Snippet (bottom italic)
+    if (n.snippet) {
+      const snipEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      snipEl.setAttribute('x', x + nw / 2); snipEl.setAttribute('y', y + nh - 10);
+      snipEl.setAttribute('text-anchor', 'middle'); snipEl.setAttribute('fill', 'rgba(255,255,255,0.8)');
+      snipEl.setAttribute('font-size', '7.5'); snipEl.setAttribute('font-style', 'italic');
+      snipEl.setAttribute('font-family', 'Noto Sans TC, sans-serif');
+      snipEl.textContent = n.snippet;
+      svg.appendChild(snipEl);
+    }
+  });
+}
+
+// ─── Reset ───
+function resetForm() {
+  currentStep = 1;
+  selections.seniority = '';
+  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = '');
+  laserSlider.value = 60; laserDisplay.textContent = '60%'; iclDisplay.textContent = '40%';
+  document.getElementById('result-page').classList.remove('show');
+  document.getElementById('form-page').style.display = 'block';
+  updateUI();
+}
+</script>
+</body>
+</html>

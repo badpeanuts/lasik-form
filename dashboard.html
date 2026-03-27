@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>屈光話術後台 — PM 儀表板</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1a56db; --primary-dark: #1e429f; --indigo: #3730a3;
+    --green: #0e7e5c; --gray-text: #1a1916; --gray-mid: #6b7280;
+    --gray-light: #f3f4f6; --gray-border: #d1d5db; --white: #ffffff;
+    --radius: 10px;
+  }
+  html, body { font-family: 'Noto Sans TC', sans-serif; background: #f0f4f8; color: var(--gray-text); font-size: 14px; }
+
+  /* Header */
+  .header { background: var(--primary); color: var(--white); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .header-left h1 { font-size: 18px; font-weight: 700; }
+  .header-left p { font-size: 12px; opacity: .8; margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 8px 16px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .btn-white { background: var(--white); color: var(--primary); }
+  .btn-white:hover { background: #e8f0fe; }
+  .btn-green { background: var(--green); color: var(--white); }
+  .btn-green:hover { background: #0a6b4e; }
+  .btn-outline { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,.6); }
+  .btn-outline:hover { background: rgba(255,255,255,.1); }
+
+  /* Toolbar */
+  .toolbar { background: var(--white); padding: 14px 28px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--gray-border); }
+  .toolbar label { font-size: 13px; color: var(--gray-mid); font-weight: 500; }
+  .toolbar input, .toolbar select {
+    padding: 7px 12px; border: 1.5px solid var(--gray-border); border-radius: 8px;
+    font-family: inherit; font-size: 13px; color: var(--gray-text); background: var(--white); outline: none;
+  }
+  .toolbar input:focus, .toolbar select:focus { border-color: var(--primary); }
+  .update-info { margin-left: auto; font-size: 12px; color: var(--gray-mid); }
+
+  /* Content */
+  .content { max-width: 1280px; margin: 0 auto; padding: 24px 28px 60px; }
+
+  /* Stats Row */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--white); border-radius: var(--radius); padding: 18px 20px; border: 1px solid var(--gray-border); }
+  .stat-card .stat-label { font-size: 12px; color: var(--gray-mid); font-weight: 500; margin-bottom: 6px; }
+  .stat-card .stat-val { font-size: 28px; font-weight: 700; color: var(--primary); line-height: 1; }
+  .stat-card .stat-sub { font-size: 12px; color: var(--gray-mid); margin-top: 4px; }
+
+  /* Keywords */
+  .keywords-section { background: var(--white); border-radius: var(--radius); border: 1px solid var(--gray-border); padding: 18px 20px; margin-bottom: 24px; }
+  .keywords-section h3 { font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 14px; }
+  .kw-row { margin-bottom: 12px; }
+  .kw-row-title { font-size: 12px; color: var(--gray-mid); font-weight: 600; margin-bottom: 6px; }
+  .kw-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .kw-tag { padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .kw-tag.rank-1 { background: #eff6ff; color: var(--primary); border: 1.5px solid var(--primary); }
+  .kw-tag.rank-2 { background: #f0fdf4; color: #15803d; border: 1.5px solid #86efac; }
+  .kw-tag.rank-3 { background: #faf5ff; color: #7c3aed; border: 1.5px solid #c4b5fd; }
+  .kw-tag.rank-4 { background: #fff7ed; color: #c2410c; border: 1.5px solid #fdba74; }
+  .kw-tag.rank-5 { background: var(--gray-light); color: var(--gray-mid); border: 1.5px solid var(--gray-border); }
+
+  /* Person cards */
+  .cards-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cards-header h3 { font-size: 15px; font-weight: 700; }
+  .cards-header .count { font-size: 12px; color: var(--gray-mid); }
+
+  .person-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--gray-border); margin-bottom: 12px; overflow: hidden; transition: box-shadow .2s; }
+  .person-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .person-card-header { padding: 16px 20px; display: flex; align-items: center; gap: 14px; cursor: pointer; user-select: none; }
+  .person-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  .person-info { flex: 1; }
+  .person-name { font-weight: 700; font-size: 15px; color: var(--gray-text); }
+  .person-meta { font-size: 12px; color: var(--gray-mid); margin-top: 2px; }
+  .person-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .badge { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-laser { background: #eff6ff; color: var(--primary); }
+  .badge-icl { background: #f5f3ff; color: #7c3aed; }
+  .badge-seniority { background: var(--gray-light); color: var(--gray-mid); }
+  .expand-btn { font-size: 18px; color: var(--gray-mid); transition: transform .25s; }
+  .expand-btn.open { transform: rotate(180deg); }
+
+  .person-detail { display: none; padding: 0 20px 20px; border-top: 1px solid var(--gray-border); }
+  .person-detail.show { display: block; }
+
+  .script-block { margin-bottom: 14px; margin-top: 14px; }
+  .script-block h4 { font-size: 13px; font-weight: 700; color: var(--primary); padding: 6px 12px; background: #eff6ff; border-left: 3px solid var(--primary); border-radius: 0 6px 6px 0; margin-bottom: 0; }
+  .script-content { background: var(--gray-light); border-radius: 0 0 8px 8px; padding: 10px 13px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; color: var(--gray-text); border: 1px solid var(--gray-border); border-top: none; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--gray-mid); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+
+  /* Loading */
+  #loading-bar { display: none; text-align: center; padding: 40px; color: var(--gray-mid); }
+  .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--gray-border); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media print {
+    .header-actions, .toolbar { display: none !important; }
+    .person-detail { display: block !important; }
+    .person-card { break-inside: avoid; margin-bottom: 20px; }
+  }
+
+  @media (max-width: 600px) {
+    .content { padding: 16px 16px 60px; }
+    .header { padding: 14px 16px; }
+    .toolbar { padding: 12px 16px; }
+    .person-card-header { flex-wrap: wrap; }
+    .person-badges { margin-top: 8px; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>屈光話術 PM 後台</h1>
+    <p>大學眼科屈光雷射部門 — 諮詢員話術彙整報表</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-white" onclick="loadData()">🔄 重新整理</button>
+    <button class="btn btn-outline" onclick="exportCSV()">📥 匯出 CSV</button>
+    <button class="btn btn-green" onclick="window.print()">🖨️ 列印全員報告</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label>診所篩選：</label>
+  <input type="text" id="filter-clinic" placeholder="輸入診所名稱關鍵字" oninput="applyFilters()">
+
+  <label style="margin-left:10px;">年資：</label>
+  <select id="filter-seniority" onchange="applyFilters()">
+    <option value="">全部</option>
+    <option value="1年以下">1年以下</option>
+    <option value="1–3年">1–3年</option>
+    <option value="3年以上">3年以上</option>
+  </select>
+
+  <div class="update-info" id="update-info">—</div>
+</div>
+
+<div class="content">
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">總填寫人數</div>
+      <div class="stat-val" id="stat-total">—</div>
+      <div class="stat-sub">筆完整記錄</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">平均雷射客佔比</div>
+      <div class="stat-val" id="stat-laser">—</div>
+      <div class="stat-sub">% 平均值</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">平均 ICL 客佔比</div>
+      <div class="stat-val" id="stat-icl">—</div>
+      <div class="stat-sub">% 平均值</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">參與診所數</div>
+      <div class="stat-val" id="stat-clinics">—</div>
+      <div class="stat-sub">間不重複診所</div>
+    </div>
+  </div>
+
+  <!-- Keywords -->
+  <div class="keywords-section" id="keywords-section" style="display:none">
+    <h3>🔤 各環節高頻關鍵詞（前5名）</h3>
+    <div id="keywords-container"></div>
+  </div>
+
+  <!-- Person list -->
+  <div class="cards-header">
+    <h3>👥 個人話術報告</h3>
+    <div class="count" id="cards-count"></div>
+  </div>
+
+  <div id="loading-bar"><div class="spinner"></div><div style="margin-top:10px;">載入中…</div></div>
+  <div id="cards-container"></div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7H0zfwDaNzNSiCDD9E8MWlCMylLs4kSzmEqMvLg8OVbwY-t5IN1UYotP-6-e3gTmPAg/exec';
+
+let allRecords = [];
+let filteredRecords = [];
+
+// ─── Load Data ───
+async function loadData() {
+  document.getElementById('loading-bar').style.display = 'block';
+  document.getElementById('cards-container').innerHTML = '';
+  try {
+    let url = APPS_SCRIPT_URL;
+    if (!url) { mockData(); return; }
+
+    const clinic = document.getElementById('filter-clinic').value.trim();
+    const seniority = document.getElementById('filter-seniority').value;
+    if (clinic) url += '?clinic=' + encodeURIComponent(clinic);
+    if (seniority) url += (clinic ? '&' : '?') + 'seniority=' + encodeURIComponent(seniority);
+
+    const res = await fetch(url);
+    allRecords = await res.json();
+    filteredRecords = [...allRecords];
+    render();
+    document.getElementById('update-info').textContent = '最後更新：' + new Date().toLocaleString('zh-TW');
+  } catch(e) {
+    document.getElementById('loading-bar').style.display = 'none';
+    document.getElementById('cards-container').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>無法連線至資料來源，請確認 APPS_SCRIPT_URL 已設定正確</p></div>';
+  }
+}
+
+// ─── Mock data (for demo when URL not set) ───
+function mockData() {
+  allRecords = [
+    {
+      consultantName: '示範諮詢員', clinic: '示範診所', seniority: '1–3年',
+      laserRatio: 65, iclRatio: 35,
+      clientDiff: '雷射客通常已做過功課，直接問哪種比較好；ICL客多半是朋友推薦或不適合雷射才來',
+      smileVsLasik: '我會先看度數和角膜厚度，超過800度且角膜偏薄的就建議ICL，一般的情況我先問客人職業和生活習慣，有碰撞風險的推SMILE',
+      smileProScript: 'SMILE Pro 3.0 Max我會強調傷口只有2mm，恢復快，隔天就能上班，而且是最新一代設備，我們診所是全台第一批引進的',
+      laserToIcl: '通常是檢查後角膜偏薄的情況，我會說：根據你的角膜厚度，我建議你可以多了解一下ICL，它的優點是完全不需要切削角膜',
+      iclToLaser: '如果客人預算比較有限，或者比較怕開刀，我會主動比較雷射的費用差異，讓客人自己做選擇',
+      bothCompare: '我會用一個比喻：雷射像配眼鏡修整玻璃，ICL像直接放一片超薄隱形眼鏡在眼睛裡，都能達到清晰視力，方式不同',
+      bothWhichBetter: '我通常說：沒有哪個更好，只有更適合你的。根據你的角膜條件和生活型態，我來幫你分析最合適的選擇',
+      closingScript: '我收集完資訊後，通常說：根據今天的檢查和你說的需求，我最推薦的是…，今天如果決定的話，我可以幫你安排…的手術時間'
+    }
+  ];
+  filteredRecords = [...allRecords];
+  render();
+  document.getElementById('update-info').textContent = '⚠️ 示範模式（APPS_SCRIPT_URL 未設定）';
+}
+
+// ─── Apply filters ───
+function applyFilters() {
+  const clinic = document.getElementById('filter-clinic').value.trim().toLowerCase();
+  const seniority = document.getElementById('filter-seniority').value;
+  filteredRecords = allRecords.filter(r => {
+    const matchClinic = !clinic || (r.clinic || '').toLowerCase().includes(clinic);
+    const matchSeniority = !seniority || r.seniority === seniority;
+    return matchClinic && matchSeniority;
+  });
+  render();
+}
+
+// ─── Render ───
+function render() {
+  document.getElementById('loading-bar').style.display = 'none';
+  updateStats();
+  updateKeywords();
+  renderCards();
+}
+
+function updateStats() {
+  const records = filteredRecords;
+  document.getElementById('stat-total').textContent = records.length;
+  if (records.length > 0) {
+    const avgLaser = Math.round(records.reduce((s,r) => s + Number(r.laserRatio || 0), 0) / records.length);
+    const avgIcl = 100 - avgLaser;
+    document.getElementById('stat-laser').textContent = avgLaser;
+    document.getElementById('stat-icl').textContent = avgIcl;
+    const clinics = new Set(records.map(r => r.clinic).filter(Boolean));
+    document.getElementById('stat-clinics').textContent = clinics.size;
+  } else {
+    ['stat-laser','stat-icl','stat-clinics'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+}
+
+// ─── Keywords ───
+function extractKeywords(texts, topN = 5) {
+  const stopwords = new Set(['的','了','是','在','我','你','他','她','它','我們','你們','他們','這','那','有','沒有','和','或','但','因為','所以','如果','就','會','要','可以','不','都','也','很','比較','一個','一樣','什麼','怎麼','客人','說','做','來','去','問','看','選','幫']);
+  const freq = {};
+  texts.forEach(text => {
+    if (!text) return;
+    const words = text.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
+    words.forEach(w => {
+      if (!stopwords.has(w)) { freq[w] = (freq[w] || 0) + 1; }
+    });
+  });
+  return Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, topN).map(([w,n]) => ({ word: w, count: n }));
+}
+
+function updateKeywords() {
+  const records = filteredRecords;
+  if (records.length === 0) { document.getElementById('keywords-section').style.display = 'none'; return; }
+
+  const sections = [
+    { title: 'SMILE vs LASIK 判斷', field: 'smileVsLasik' },
+    { title: 'SMILE Pro 推薦話術', field: 'smileProScript' },
+    { title: '雷射→ICL 導入', field: 'laserToIcl' },
+    { title: 'ICL→雷射 轉向', field: 'iclToLaser' },
+    { title: '締結話術', field: 'closingScript' },
+  ];
+
+  const container = document.getElementById('keywords-container');
+  container.innerHTML = sections.map(sec => {
+    const texts = records.map(r => r[sec.field] || '');
+    const kws = extractKeywords(texts, 5);
+    if (kws.length === 0) return '';
+    return `<div class="kw-row">
+      <div class="kw-row-title">${sec.title}</div>
+      <div class="kw-tags">
+        ${kws.map((kw,i) => `<span class="kw-tag rank-${i+1}">${kw.word} <span style="opacity:.6;font-weight:400">${kw.count}</span></span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('keywords-section').style.display = 'block';
+}
+
+// ─── Render Cards ───
+function renderCards() {
+  const container = document.getElementById('cards-container');
+  document.getElementById('cards-count').textContent = `共 ${filteredRecords.length} 筆`;
+
+  if (filteredRecords.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>目前沒有符合條件的填寫記錄</p></div>';
+    return;
+  }
+
+  container.innerHTML = filteredRecords.map((r, i) => {
+    const initials = (r.consultantName || '?').slice(0, 1);
+    const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `
+    <div class="person-card" id="card-${i}">
+      <div class="person-card-header" onclick="toggleCard(${i})">
+        <div class="person-avatar">${initials}</div>
+        <div class="person-info">
+          <div class="person-name">${esc(r.consultantName || '—')}</div>
+          <div class="person-meta">${esc(r.clinic || '—')} ｜ 填寫時間：${ts}</div>
+        </div>
+        <div class="person-badges">
+          <span class="badge badge-seniority">${esc(r.seniority || '—')}</span>
+          <span class="badge badge-laser">雷射 ${r.laserRatio || 0}%</span>
+          <span class="badge badge-icl">ICL ${r.iclRatio || 0}%</span>
+        </div>
+        <div class="expand-btn" id="expand-${i}">▾</div>
+      </div>
+      <div class="person-detail" id="detail-${i}">
+        ${scriptBlock('SMILE vs LASIK 判斷邏輯與話術', r.smileVsLasik)}
+        ${scriptBlock('SMILE Pro 3.0 Max 推薦話術', r.smileProScript)}
+        ${scriptBlock('近視雷射客 → 導入 ICL 的時機與話術', r.laserToIcl)}
+        ${scriptBlock('EVO ICL 客 → 轉向雷射的時機與話術', r.iclToLaser)}
+        ${scriptBlock('兩種術式的比較說明', r.bothCompare)}
+        ${scriptBlock('當客人問選哪個', r.bothWhichBetter)}
+        ${scriptBlock('締結判斷與話術', r.closingScript)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function scriptBlock(title, content) {
+  return `<div class="script-block">
+    <h4>【${esc(title)}】</h4>
+    <div class="script-content">${esc(content || '（未填寫）')}</div>
+  </div>`;
+}
+
+function toggleCard(i) {
+  const detail = document.getElementById('detail-' + i);
+  const btn = document.getElementById('expand-' + i);
+  const isOpen = detail.classList.contains('show');
+  detail.classList.toggle('show', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Export CSV ───
+function exportCSV() {
+  if (filteredRecords.length === 0) { alert('沒有資料可匯出'); return; }
+  const headers = ['時間戳記','姓名','診所','年資','雷射佔比','ICL佔比','客群差異觀察','SMILE vs LASIK判斷','SMILE Pro推薦話術','雷射→ICL導入','ICL→雷射轉向','兩術式比較','選哪個回答','締結話術'];
+  const fields = ['timestamp','consultantName','clinic','seniority','laserRatio','iclRatio','clientDiff','smileVsLasik','smileProScript','laserToIcl','iclToLaser','bothCompare','bothWhichBetter','closingScript'];
+
+  const rows = [headers, ...filteredRecords.map(r => fields.map(f => {
+    const val = String(r[f] || '').replace(/"/g,'""');
+    return '"' + val + '"';
+  }))];
+
+  const csv = '\uFEFF' + rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '屈光話術記錄_' + new Date().toISOString().slice(0,10) + '.csv';
+  link.click();
+}
+
+// ─── Init ───
+loadData();
+</script>
+</body>
+</html>
