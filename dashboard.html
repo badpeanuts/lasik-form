@@ -112,6 +112,40 @@
     .person-badges { margin-top: 8px; width: 100%; }
   }
 
+  /* ── 流程圖按鈕 ── */
+  .btn-chart { background: #7c3aed; color: #fff; }
+  .btn-chart:hover { background: #6d28d9; }
+  .btn-chart-sm { padding: 4px 10px; font-size: 11px; background: #7c3aed; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; white-space: nowrap; }
+  .btn-chart-sm:hover { background: #6d28d9; }
+
+  /* ── 流程圖 Modal ── */
+  .chart-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 300;
+    overflow-y: auto; padding: 20px;
+  }
+  .chart-modal-overlay.open { display: block; }
+  .chart-modal-box {
+    background: #fff; border-radius: 14px;
+    max-width: 1020px; margin: 0 auto;
+    overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  }
+  .chart-modal-header {
+    background: #3730a3; color: #fff;
+    padding: 16px 24px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .chart-modal-header h2 { font-size: 15px; font-weight: 700; }
+  .chart-modal-meta { font-size: 12px; opacity: .8; margin-top: 3px; }
+  .chart-modal-body { padding: 20px; overflow-x: auto; }
+  #chart-modal-svg { display: block; width: 100%; height: auto; }
+
+  @media print {
+    .chart-modal-overlay.printing { display: block !important; position: static; padding: 0; background: none; }
+    .chart-modal-overlay.printing .chart-modal-box { box-shadow: none; border-radius: 0; }
+    .chart-modal-overlay.printing .chart-modal-header { background: #3730a3 !important; -webkit-print-color-adjust: exact; }
+  }
+
   /* ── 學習文件 Modal ── */
   .btn-gold { background: #f59e0b; color: #fff; }
   .btn-gold:hover { background: #d97706; }
@@ -153,9 +187,10 @@
   .rc-tag { font-size: 11px; color: var(--gray-mid); background: var(--gray-light); padding: 2px 8px; border-radius: 99px; }
   .rc-text { font-size: 13px; line-height: 1.8; color: var(--gray-text); white-space: pre-wrap; }
 
-  /* 列印：只印學習文件 */
+  /* 列印：只印學習文件或流程圖 */
   @media print {
-    body > *:not(.modal-overlay) { display: none !important; }
+    body > *:not(.modal-overlay):not(.chart-modal-overlay) { display: none !important; }
+    /* 學習文件 */
     .modal-overlay { display: block !important; position: static; padding: 0; background: none; overflow: visible; }
     .modal-box { box-shadow: none; border-radius: 0; }
     .modal-header { background: #1a56db !important; -webkit-print-color-adjust: exact; }
@@ -164,6 +199,11 @@
     .learn-section { break-inside: avoid; }
     .response-card { break-inside: avoid; }
     .learn-responses { grid-template-columns: repeat(2, 1fr); }
+    /* 流程圖 */
+    .chart-modal-overlay.printing { display: block !important; position: static; padding: 0; background: none; }
+    .chart-modal-overlay.printing .chart-modal-box { box-shadow: none; border-radius: 0; }
+    .chart-modal-overlay.printing .chart-modal-header { background: #3730a3 !important; -webkit-print-color-adjust: exact; }
+    .chart-modal-overlay:not(.printing) { display: none !important; }
   }
 </style>
 </head>
@@ -178,6 +218,7 @@
     <button class="btn btn-white" onclick="loadData()">🔄 重新整理</button>
     <button class="btn btn-outline" onclick="exportCSV()">📥 匯出 CSV</button>
     <button class="btn btn-green" onclick="window.print()">🖨️ 列印全員報告</button>
+    <button class="btn btn-chart" onclick="showTeamFlowchart()">🗺 團隊流程圖</button>
     <button class="btn btn-gold" onclick="generateLearningDoc()">📚 生成學習文件</button>
   </div>
 </div>
@@ -446,6 +487,7 @@ function renderCards() {
           <span class="badge badge-seniority">${esc(r.seniority || '—')}</span>
           <span class="badge badge-laser">雷射 ${r.laserRatio || 0}%</span>
           <span class="badge badge-icl">ICL ${r.iclRatio || 0}%</span>
+          <button class="btn-chart-sm" onclick="event.stopPropagation();showFlowchart(${i})">🗺 個人流程圖</button>
         </div>
         <div class="expand-btn" id="expand-${i}">▾</div>
       </div>
@@ -498,6 +540,159 @@ function exportCSV() {
   link.href = URL.createObjectURL(blob);
   link.download = '屈光話術記錄_' + new Date().toISOString().slice(0,10) + '.csv';
   link.click();
+}
+
+// ─── 流程圖：核心繪製函式 ───
+function buildFlowchart(svgEl, data) {
+  svgEl.setAttribute('viewBox', '0 0 960 640');
+  svgEl.style.minWidth = '760px';
+  svgEl.style.maxWidth = '960px';
+  svgEl.innerHTML = '';
+
+  const ex = (t, n=20) => !t ? '' : (String(t).length > n ? String(t).slice(0,n)+'…' : String(t));
+  const ns = 'http://www.w3.org/2000/svg';
+  const mk = (tag, attrs, txt) => {
+    const e = document.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, String(v)));
+    if (txt !== undefined) e.textContent = txt;
+    return e;
+  };
+
+  // Defs（箭頭 marker）
+  const defs = mk('defs', {});
+  [['arr','#9ca3af'],['arr-b','#3730a3'],['arr-g','#0e7e5c'],['arr-v','#7c3aed']].forEach(([id,c]) => {
+    defs.innerHTML += `<marker id="${id}" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="${c}"/></marker>`;
+  });
+  svgEl.appendChild(defs);
+
+  function node(x, y, w, h, bg, title, role, snip, dashed=false) {
+    const g = mk('g', {});
+    if (dashed) {
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:bg, opacity:'0.07'}));
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:'none', stroke:bg, 'stroke-width':'1.8', 'stroke-dasharray':'6,3'}));
+    } else {
+      g.appendChild(mk('rect', {x, y, width:w, height:h, rx:10, fill:bg, opacity:'0.93'}));
+    }
+    const mainC = dashed ? bg : '#fff';
+    const subC  = dashed ? bg : 'rgba(255,255,255,.65)';
+    if (title) g.appendChild(mk('text', {x:x+w/2, y:y+13, 'text-anchor':'middle', fill:dashed?bg:'rgba(255,255,255,.65)', 'font-size':'9', 'font-family':'Noto Sans TC,sans-serif'}, title));
+    if (snip) {
+      const line1 = snip.slice(0,15);
+      const line2 = snip.length > 15 ? snip.slice(15,30) + (snip.length > 30 ? '…' : '') : '';
+      const midY  = line2 ? y+h/2-6 : y+h/2+4;
+      g.appendChild(mk('text', {x:x+w/2, y:midY, 'text-anchor':'middle', fill:mainC, 'font-size':'12', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, line1));
+      if (line2) g.appendChild(mk('text', {x:x+w/2, y:midY+16, 'text-anchor':'middle', fill:mainC, 'font-size':'11', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, line2));
+      if (role) g.appendChild(mk('text', {x:x+w/2, y:y+h-6, 'text-anchor':'middle', fill:subC, 'font-size':'8', 'font-family':'Noto Sans TC,sans-serif'}, '— ' + role + ' —'));
+    } else {
+      g.appendChild(mk('text', {x:x+w/2, y:y+h/2+6, 'text-anchor':'middle', fill:mainC, 'font-size':'14', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, role));
+    }
+    svgEl.appendChild(g);
+  }
+
+  function badge(x, y, w, h, color, label) {
+    const g = mk('g', {});
+    g.appendChild(mk('rect', {x, y, width:w, height:h, rx:8, fill:color, opacity:'0.12', stroke:color, 'stroke-width':'1.8'}));
+    g.appendChild(mk('text', {x:x+w/2, y:y+h/2+5, 'text-anchor':'middle', fill:color, 'font-size':'11', 'font-weight':'700', 'font-family':'Noto Sans TC,sans-serif'}, label));
+    svgEl.appendChild(g);
+  }
+
+  function arr(x1,y1,x2,y2, mid='arr', c='#9ca3af', dash=false) {
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
+    const attrs={x1,y1,x2:x2-dx/len*7,y2:y2-dy/len*7,stroke:c,'stroke-width':'1.8','marker-end':`url(#${mid})`};
+    if(dash) attrs['stroke-dasharray']='5,3';
+    svgEl.appendChild(mk('line',attrs));
+  }
+
+  const NW=166, NH=78, TH=52;
+  const cxL=155, cxC=480, cxR=805;
+  const r0=10, r1=84, r2=182, r3=246, r4=348, r5=454, r6=554;
+
+  // 連線
+  arr(cxC, r0+TH, cxC, r1);
+  svgEl.appendChild(mk('line',{x1:cxC,y1:r1+NH,x2:cxC,y2:r2-8,stroke:'#9ca3af','stroke-width':'1.8'}));
+  svgEl.appendChild(mk('line',{x1:cxL,y1:r2-8,x2:cxR,y2:r2-8,stroke:'#9ca3af','stroke-width':'1.5'}));
+  arr(cxL,r2-8,cxL,r2); arr(cxC,r2-8,cxC,r2); arr(cxR,r2-8,cxR,r2);
+  arr(cxL,r2+38,cxL,r3); arr(cxC,r2+38,cxC,r3); arr(cxR,r2+38,cxR,r3);
+  arr(cxL,r3+NH,cxL,r4); arr(cxC,r3+NH,cxC,r4); arr(cxR,r3+NH,cxR,r4);
+  arr(cxL,r4+NH,cxL,r5,'arr-b','#3730a3',true);
+  arr(cxR,r4+NH,cxR,r5,'arr-g','#0e7e5c',true);
+  const merY=r6-20;
+  svgEl.appendChild(mk('path',{d:`M${cxL} ${r5+NH} L${cxL} ${merY} L${cxC} ${merY} L${cxC} ${r6-7}`,fill:'none',stroke:'#9ca3af','stroke-width':'1.8','marker-end':'url(#arr)'}));
+  arr(cxC,r4+NH,cxC,r6);
+  svgEl.appendChild(mk('path',{d:`M${cxR} ${r5+NH} L${cxR} ${merY} L${cxC} ${merY} L${cxC} ${r6-7}`,fill:'none',stroke:'#9ca3af','stroke-width':'1.8'}));
+  arr(cxC,r6+TH,cxC,r6+TH+30);
+  svgEl.appendChild(mk('text',{x:cxC-68,y:r4+NH+16,fill:'#3730a3','font-size':'9','font-weight':'700','font-family':'Noto Sans TC,sans-serif'},'→ 選雷射'));
+  svgEl.appendChild(mk('text',{x:cxC+18,y:r4+NH+16,fill:'#0e7e5c','font-size':'9','font-weight':'700','font-family':'Noto Sans TC,sans-serif'},'→ 選 ICL'));
+
+  // 節點
+  node(cxC-NW/2, r0, NW, TH, '#374151', '到院識別', '前台', '');
+  node(cxC-NW/2, r1, NW, NH, '#1a56db', '術前評估 / 客群識別', '諮詢師', ex(data.clientDiff));
+  badge(cxL-72, r2, 144, 38, '#3730a3', '✔ 符合雷射');
+  badge(cxC-72, r2, 144, 38, '#7c3aed', '✔ 兩者都符合');
+  badge(cxR-80, r2, 160, 38, '#0e7e5c', '✔ 不符合 / ICL 預約');
+  node(cxL-NW/2, r3, NW, NH, '#3730a3', 'SMILE vs LASIK 判斷', '諮詢師', ex(data.smileVsLasik));
+  node(cxC-NW/2, r3, NW, NH, '#7c3aed', '術式比較說明', '諮詢師', ex(data.bothCompare));
+  node(cxR-NW/2, r3, NW, NH, '#0e7e5c', 'ICL 說明', '諮詢師', ex(data.iclToLaser));
+  node(cxL-NW/2, r4, NW, NH, '#3730a3', 'SMILE Pro 3.0 Max 推薦', '諮詢師', ex(data.smileProScript));
+  node(cxC-NW/2, r4, NW, NH, '#7c3aed', '選擇引導話術', '諮詢師', ex(data.bothWhichBetter));
+  node(cxR-NW/2, r4, NW, NH, '#0e7e5c', 'ICL→雷射 轉向條件', '諮詢師', ex(data.iclToLaser));
+  node(cxL-NW/2, r5, NW, NH, '#3730a3', '雷射→ICL 導入時機', '諮詢師（視情況）', ex(data.laserToIcl), true);
+  node(cxR-NW/2, r5, NW, NH, '#0e7e5c', 'ICL→雷射 轉向時機', '諮詢師（視情況）', ex(data.iclToLaser), true);
+  node(cxC-NW/2, r6, NW, TH, '#374151', '醫師確認', '醫師', '');
+  node(cxC-NW/2, r6+TH+30, NW, 52, '#0e7e5c', '締結', '諮詢師', ex(data.closingScript,24));
+}
+
+// ─── 個人流程圖 ───
+function showFlowchart(idx) {
+  const r = filteredRecords[idx];
+  if (!r) return;
+  document.getElementById('chart-modal-title').textContent = `🗺 ${r.consultantName || '—'} 的導流思路`;
+  document.getElementById('chart-modal-meta').textContent =
+    `${r.clinic || '—'} ｜ ${r.seniority || '—'} ｜ 雷射 ${r.laserRatio||0}% / ICL ${r.iclRatio||0}%`;
+  buildFlowchart(document.getElementById('chart-modal-svg'), r);
+  document.getElementById('chart-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+// ─── 團隊合成流程圖（每個欄位取最長答案） ───
+function showTeamFlowchart() {
+  const records = filteredRecords;
+  if (records.length === 0) { alert('目前沒有記錄，請先載入資料。'); return; }
+
+  const fields = ['clientDiff','smileVsLasik','smileProScript','laserToIcl','iclToLaser','bothCompare','bothWhichBetter','closingScript'];
+  const composite = {};
+  fields.forEach(f => {
+    composite[f] = records.reduce((best, r) => {
+      const v = String(r[f] || '');
+      return v.length > String(best||'').length ? v : best;
+    }, '');
+  });
+  // 顯示平均佔比
+  const avgLaser = Math.round(records.reduce((s,r)=>s+Number(r.laserRatio||0),0)/records.length);
+  composite.laserRatio = avgLaser;
+  composite.iclRatio   = 100 - avgLaser;
+
+  const clinicLabel    = document.getElementById('filter-clinic').value.trim() || '全診所';
+  const seniorityLabel = document.getElementById('filter-seniority').value || '全年資';
+  document.getElementById('chart-modal-title').textContent = '🗺 團隊合成導流思路流程圖';
+  document.getElementById('chart-modal-meta').textContent =
+    `${clinicLabel} ｜ ${seniorityLabel} ｜ ${records.length} 人合成（每欄取最完整回答）`;
+  buildFlowchart(document.getElementById('chart-modal-svg'), composite);
+  document.getElementById('chart-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+// ─── 關閉 / 列印流程圖 ───
+function closeChartModal() {
+  document.getElementById('chart-modal').classList.remove('open', 'printing');
+  document.body.style.overflow = '';
+}
+
+function printChart() {
+  const overlay = document.getElementById('chart-modal');
+  overlay.classList.add('printing');
+  window.print();
+  overlay.classList.remove('printing');
 }
 
 // ─── Init ───
@@ -580,9 +775,33 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('learn-modal').addEventListener('click', function(e) {
     if (e.target === this) closeLearnModal();
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLearnModal(); });
+  document.getElementById('chart-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeChartModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeLearnModal(); closeChartModal(); }
+  });
 });
 </script>
+
+<!-- ── 流程圖 Modal ── -->
+<div class="chart-modal-overlay" id="chart-modal">
+  <div class="chart-modal-box">
+    <div class="chart-modal-header">
+      <div>
+        <h2 id="chart-modal-title">🗺 諮詢導流思路流程圖</h2>
+        <div class="chart-modal-meta" id="chart-modal-meta"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-shrink:0">
+        <button class="btn btn-white" onclick="printChart()" style="font-size:12px;padding:6px 12px">🖨️ 列印</button>
+        <button class="btn btn-outline" onclick="closeChartModal()" style="font-size:12px;padding:6px 12px">✕ 關閉</button>
+      </div>
+    </div>
+    <div class="chart-modal-body">
+      <svg id="chart-modal-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+</div>
 
 <!-- ── 學習文件 Modal ── -->
 <div class="modal-overlay" id="learn-modal">
