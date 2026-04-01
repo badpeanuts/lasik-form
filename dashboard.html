@@ -282,11 +282,13 @@ function loadData() {
     // 正規化資料：將 Date 物件與數字轉成字串，防止渲染錯誤
     allRecords = data.map(r => {
       const clean = {};
+      const numFields = new Set(['laserRatio','iclRatio']);
       Object.keys(r).forEach(k => {
         const v = r[k];
         if (v instanceof Date) clean[k] = v.toISOString();
         else if (v === null || v === undefined) clean[k] = '';
-        else clean[k] = v;
+        else if (numFields.has(k)) clean[k] = Number(v) || 0;
+        else clean[k] = String(v);
       });
       return clean;
     });
@@ -429,7 +431,7 @@ function renderCards() {
   }
 
   container.innerHTML = filteredRecords.map((r, i) => {
-    const initials = (r.consultantName || '?').slice(0, 1);
+    const initials = String(r.consultantName || '?').slice(0, 1);
     let ts = '—';
     try { if (r.timestamp) { const d = new Date(r.timestamp); if (!isNaN(d)) ts = d.toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); } } catch(_) {}
     return `
